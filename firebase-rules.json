@@ -1,0 +1,32 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomCode": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['id', 'hostId', 'status', 'players'])",
+        
+        "players": {
+          "$playerId": {
+            ".validate": "newData.hasChildren(['id', 'name', 'chips'])"
+          }
+        },
+        
+        "pot": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        
+        "currentBet": {
+          ".validate": "newData.isNumber() && newData.val() >= 0"
+        },
+        
+        "status": {
+          ".validate": "newData.val() === 'waiting' || newData.val() === 'playing' || newData.val() === 'showdown' || newData.val() === 'roundEnd'"
+        }
+      }
+    },
+    
+    ".read": false,
+    ".write": false
+  }
+}

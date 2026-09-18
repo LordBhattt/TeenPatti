@@ -1,9 +1,23 @@
 import type { Metadata, Viewport } from "next";
+import { DM_Serif_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
 
+const dmSerif = DM_Serif_Display({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-dm-serif",
+  display: "swap",
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm-sans",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "Teen Patti | 3 Patti Online",
-  description: "Play Teen Patti (3 Patti) with friends online. Create a room, share the code, and play!",
+  title: "Teen Patti",
+  description: "Play Teen Patti with friends",
 };
 
 export const viewport: Viewport = {
@@ -20,11 +34,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased min-h-screen min-h-[100dvh]">
-        <div className="felt-texture min-h-screen min-h-[100dvh] flex flex-col">
-          {children}
-        </div>
+    <html lang="en" className={`${dmSerif.variable} ${dmSans.variable}`}>
+      <body className="font-sans antialiased bg-base text-primary min-h-screen min-h-[100dvh]">
+        {children}
       </body>
     </html>
   );

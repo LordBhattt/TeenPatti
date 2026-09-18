@@ -9,56 +9,35 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
-        felt: {
-          DEFAULT: "#0B4D2C",
-          dark: "#073D22",
-          light: "#0E6038",
-        },
-        gold: {
-          DEFAULT: "#D4AF37",
-          dark: "#B8960F",
-          light: "#E8C84A",
-        },
-        card: {
-          red: "#DC2626",
-          black: "#1A1A2E",
-          back: "#1E3A5F",
-        },
+        base: '#0F0F11',
+        surface: '#1A1A1E',
+        border: '#28282E',
+        muted: '#6B6B73',
+        primary: '#E2E2E5',
+        accent: '#3B7A57',
+        'accent-dim': '#2E6144',
+        'card-red': '#B91C1C',
+        'card-black': '#1A1A1E',
       },
-      boxShadow: {
-        'card': '0 4px 12px rgba(0, 0, 0, 0.3)',
-        'card-hover': '0 8px 24px rgba(0, 0, 0, 0.4)',
-        'glow': '0 0 20px rgba(212, 175, 55, 0.4)',
-        'glow-green': '0 0 20px rgba(14, 96, 56, 0.6)',
+      fontFamily: {
+        serif: ['var(--font-dm-serif)', 'Georgia', 'serif'],
+        sans: ['var(--font-dm-sans)', 'system-ui', 'sans-serif'],
       },
       animation: {
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'bounce-in': 'bounceIn 0.5s ease-out',
-        'slide-up': 'slideUp 0.3s ease-out',
-        'flip': 'flip 0.6s ease-in-out',
-        'chip-bounce': 'chipBounce 0.4s ease-out',
+        'deal': 'deal 0.4s ease-out forwards',
+        'deal-1': 'deal 0.4s ease-out 0.08s forwards',
+        'deal-2': 'deal 0.4s ease-out 0.16s forwards',
+        'deal-3': 'deal 0.4s ease-out 0.24s forwards',
+        'fade-in': 'fadeIn 0.3s ease-out forwards',
       },
       keyframes: {
-        bounceIn: {
-          '0%': { transform: 'scale(0.3)', opacity: '0' },
-          '50%': { transform: 'scale(1.05)' },
-          '70%': { transform: 'scale(0.9)' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
+        deal: {
+          '0%': { opacity: '0', transform: 'translateY(-20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
-        slideUp: {
-          '0%': { transform: 'translateY(20px)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
-        flip: {
-          '0%': { transform: 'rotateY(0deg)' },
-          '100%': { transform: 'rotateY(180deg)' },
-        },
-        chipBounce: {
-          '0%': { transform: 'translateY(-30px) scale(0.8)', opacity: '0' },
-          '60%': { transform: 'translateY(5px) scale(1.05)' },
-          '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
         },
       },
     },

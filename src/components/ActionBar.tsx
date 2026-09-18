@@ -1,6 +1,5 @@
 'use client';
 
-
 import { Room, PlayerAction } from '@/lib/types';
 import { getValidActions } from '@/lib/gameLogic';
 
@@ -25,47 +24,47 @@ export default function ActionBar({ room, playerId, onAction, loading }: ActionB
   const raiseBet = player.hasSeen ? room.currentBet * 4 : room.currentBet * 2;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-sm border-t border-gold/30 safe-bottom">
-      <div className="max-w-lg mx-auto p-3">
-        {/* Turn indicator */}
-        <div className="text-center text-gold text-sm font-semibold mb-2 animate-pulse">
-          ✨ Your Turn
-        </div>
-        
-        <div className="flex gap-2 flex-wrap justify-center">
-          {/* See button - look at cards */}
+    <div className="fixed bottom-0 left-0 right-0 glass-bar safe-bottom z-40">
+      <div className="max-w-lg mx-auto px-4 py-3">
+        {/* Turn text */}
+        <p className="text-accent text-xs text-center mb-2.5 font-medium">Your turn</p>
+
+        <div className="flex gap-2 justify-center flex-wrap">
+          {/* See */}
           {validActions.includes('see') && (
             <button
               onClick={() => onAction({ type: 'see' })}
               disabled={loading}
-              className="touch-target px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl 
-                font-semibold text-sm transition-all active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 bg-surface border border-border rounded text-sm text-primary
+                transition-colors hover:border-muted active:scale-95 disabled:opacity-40"
             >
-              👁 See Cards
+              Look at cards
             </button>
           )}
 
-          {/* Blind bet */}
+          {/* Blind */}
           {validActions.includes('blind') && (
             <button
               onClick={() => onAction({ type: 'blind' })}
               disabled={loading}
-              className="touch-target px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl 
-                font-semibold text-sm transition-all active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 bg-surface border border-border rounded text-sm text-primary
+                transition-colors hover:border-muted active:scale-95 disabled:opacity-40"
             >
-              🙈 Blind ({blindBet})
+              <span>Blind</span>
+              <span className="text-muted text-xs ml-1.5">{blindBet}</span>
             </button>
           )}
 
-          {/* Chaal (seen bet) */}
+          {/* Chaal */}
           {validActions.includes('chaal') && (
             <button
               onClick={() => onAction({ type: 'chaal' })}
               disabled={loading}
-              className="touch-target px-4 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl 
-                font-semibold text-sm transition-all active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 bg-surface border border-border rounded text-sm text-primary
+                transition-colors hover:border-muted active:scale-95 disabled:opacity-40"
             >
-              💰 Chaal ({seenBet})
+              <span>Chaal</span>
+              <span className="text-muted text-xs ml-1.5">{seenBet}</span>
             </button>
           )}
 
@@ -74,10 +73,11 @@ export default function ActionBar({ room, playerId, onAction, loading }: ActionB
             <button
               onClick={() => onAction({ type: 'raise', amount: raiseBet })}
               disabled={loading}
-              className="touch-target px-4 py-2.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded-xl 
-                font-semibold text-sm transition-all active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 bg-surface border border-accent/40 rounded text-sm text-primary
+                transition-colors hover:border-accent active:scale-95 disabled:opacity-40"
             >
-              ⬆️ Raise ({raiseBet})
+              <span>Raise</span>
+              <span className="text-muted text-xs ml-1.5">{raiseBet}</span>
             </button>
           )}
 
@@ -86,10 +86,10 @@ export default function ActionBar({ room, playerId, onAction, loading }: ActionB
             <button
               onClick={() => onAction({ type: 'show' })}
               disabled={loading}
-              className="touch-target px-4 py-2.5 bg-gold hover:bg-gold-light text-black rounded-xl 
-                font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 bg-accent text-white rounded text-sm font-medium
+                transition-colors hover:bg-accent-dim active:scale-95 disabled:opacity-40"
             >
-              🃏 Show
+              Show cards
             </button>
           )}
 
@@ -97,22 +97,22 @@ export default function ActionBar({ room, playerId, onAction, loading }: ActionB
           {validActions.includes('fold') && (
             <button
               onClick={() => {
-                if (confirm('Are you sure you want to fold?')) {
+                if (confirm('Fold this hand?')) {
                   onAction({ type: 'fold' });
                 }
               }}
               disabled={loading}
-              className="touch-target px-4 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-xl 
-                font-semibold text-sm transition-all active:scale-95 disabled:opacity-50"
+              className="px-4 py-2 rounded text-sm text-muted
+                transition-colors hover:text-card-red active:scale-95 disabled:opacity-40"
             >
-              ✋ Fold
+              Fold
             </button>
           )}
         </div>
 
-        {/* Current bet info */}
-        <div className="text-center text-gray-400 text-xs mt-2">
-          Stake: {room.currentBet} · Pot: {room.pot} · Your chips: {player.chips}
+        {/* Stake info */}
+        <div className="text-center text-muted text-[10px] mt-2">
+          Stake {room.currentBet} · Your chips <span className="font-serif text-primary/70">{player.chips}</span>
         </div>
       </div>
     </div>

@@ -15,7 +15,7 @@ export default function HomePage() {
 
   const handleCreateRoom = async () => {
     if (!playerName.trim()) {
-      setError('Please enter your name');
+      setError('Enter your name to continue');
       return;
     }
     setLoading(true);
@@ -33,12 +33,12 @@ export default function HomePage() {
 
   const handleJoinRoom = async () => {
     if (!playerName.trim()) {
-      setError('Please enter your name');
+      setError('Enter your name to continue');
       return;
     }
     const code = joinCode.trim().toUpperCase();
     if (!code || code.length < 4) {
-      setError('Please enter a valid room code');
+      setError('Enter a valid room code');
       return;
     }
     setLoading(true);
@@ -46,13 +46,13 @@ export default function HomePage() {
     try {
       const exists = await roomExists(code);
       if (!exists) {
-        setError('Room not found. Check the code and try again.');
+        setError('Room not found');
         setLoading(false);
         return;
       }
       router.push(`/room/${code}`);
     } catch {
-      setError('Failed to join room. Check your connection.');
+      setError('Connection failed');
     } finally {
       setLoading(false);
     }
@@ -60,94 +60,83 @@ export default function HomePage() {
 
   if (!isLoaded) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-gold animate-pulse text-xl">Loading...</div>
+      <div className="flex items-center justify-center min-h-[100dvh]">
+        <p className="text-muted text-sm">Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 safe-top safe-bottom">
-      <div className="w-full max-w-sm space-y-8">
-        {/* Logo / Title */}
-        <div className="text-center space-y-2">
-          <div className="text-6xl mb-2">🃏</div>
-          <h1 className="text-4xl font-bold text-gold tracking-tight">
-            Teen Patti
-          </h1>
-          <p className="text-gray-400 text-sm">
-            Play 3 Patti online with friends
-          </p>
+    <div className="flex flex-col items-center justify-center min-h-[100dvh] px-6">
+      <div className="w-full max-w-xs space-y-10">
+        {/* Title */}
+        <div className="text-center">
+          <h1 className="font-serif text-4xl text-primary tracking-tight">Teen Patti</h1>
+          <p className="text-muted text-sm mt-1">Play with friends</p>
         </div>
 
-        {/* Player Name Input */}
+        {/* Name */}
         <div>
-          <label className="text-xs text-gray-400 uppercase tracking-wider block mb-1.5">
-            Your Name
-          </label>
+          <label className="text-muted text-xs block mb-1.5">Your name</label>
           <input
             type="text"
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Enter your name"
+            placeholder="Enter name"
             maxLength={15}
-            className="w-full bg-black/30 border border-gray-600 rounded-xl px-4 py-3 text-white 
-              placeholder-gray-500 focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold
-              text-center text-lg"
+            className="w-full bg-surface border border-border rounded px-3 py-2.5
+              text-primary text-center text-base placeholder-muted/50
+              focus:outline-none focus:border-accent transition-colors"
           />
         </div>
 
-        {/* Error Message */}
+        {/* Error */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500/30 rounded-xl px-4 py-2 text-center">
-            <p className="text-red-300 text-sm">{error}</p>
-          </div>
+          <p className="text-card-red text-xs text-center -mt-6">{error}</p>
         )}
 
-        {/* Create Room */}
+        {/* Create */}
         <button
           onClick={handleCreateRoom}
           disabled={loading}
-          className="w-full py-4 bg-gold hover:bg-gold-light text-black font-bold rounded-xl 
-            text-lg transition-all active:scale-95 shadow-glow disabled:opacity-50"
+          className="w-full py-3 bg-accent text-white font-medium rounded text-sm
+            transition-colors hover:bg-accent-dim active:scale-[0.98]
+            disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {loading ? '⏳ Creating...' : '🎯 Create Room'}
+          {loading ? 'Creating...' : 'Create room'}
         </button>
 
         {/* Divider */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-gray-600" />
-          <span className="text-gray-500 text-sm">or</span>
-          <div className="flex-1 h-px bg-gray-600" />
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-muted text-xs">or join</span>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
-        {/* Join Room */}
+        {/* Join */}
         <div className="space-y-3">
           <input
             type="text"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            placeholder="Enter room code"
+            placeholder="Room code"
             maxLength={6}
-            className="w-full bg-black/30 border border-gray-600 rounded-xl px-4 py-3 text-white 
-              placeholder-gray-500 focus:outline-none focus:border-gold focus:ring-1 focus:ring-gold
-              text-center text-lg font-mono tracking-[0.3em] uppercase"
+            className="w-full bg-surface border border-border rounded px-3 py-2.5
+              text-primary text-center font-serif text-lg tracking-[0.2em] uppercase
+              placeholder-muted/50 focus:outline-none focus:border-accent transition-colors"
           />
           <button
             onClick={handleJoinRoom}
             disabled={loading || !joinCode.trim()}
-            className="w-full py-4 bg-felt-light hover:bg-felt border border-gold/30 text-gold 
-              font-bold rounded-xl text-lg transition-all active:scale-95 
-              disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 bg-surface border border-border text-primary font-medium
+              rounded text-sm transition-colors hover:border-muted active:scale-[0.98]
+              disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            {loading ? '⏳ Joining...' : '🚪 Join Room'}
+            {loading ? 'Joining...' : 'Join room'}
           </button>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-gray-600 text-xs">
-          No account needed · Play for free · Up to 4 players
-        </p>
+        <p className="text-center text-muted/40 text-xs">No account needed</p>
       </div>
     </div>
   );

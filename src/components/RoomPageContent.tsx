@@ -55,11 +55,8 @@ export default function RoomPageContent() {
   // Loading state
   if (!isLoaded || roomLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
-          <div className="text-5xl animate-pulse">🃏</div>
-          <p className="text-gold animate-pulse">Loading room...</p>
-        </div>
+      <div className="flex items-center justify-center min-h-[100dvh]">
+        <p className="text-muted text-sm">Loading room...</p>
       </div>
     );
   }
@@ -73,18 +70,18 @@ export default function RoomPageContent() {
   // Room not found
   if (!room && !roomLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center space-y-4 max-w-sm">
-          <div className="text-5xl">😕</div>
-          <h2 className="text-xl font-bold text-white">Room Not Found</h2>
-          <p className="text-gray-400">
-            The room <span className="font-mono text-gold">{roomCode}</span> doesn&apos;t exist or has expired.
+      <div className="flex items-center justify-center min-h-[100dvh] px-6">
+        <div className="text-center space-y-4 max-w-xs">
+          <h2 className="font-serif text-xl text-primary">Room not found</h2>
+          <p className="text-muted text-sm">
+            <span className="font-serif tracking-wider text-primary">{roomCode}</span> doesn&apos;t exist or has expired.
           </p>
           <button
             onClick={() => router.push('/')}
-            className="px-6 py-3 bg-gold text-black font-bold rounded-xl transition-all active:scale-95"
+            className="px-5 py-2.5 bg-surface border border-border text-primary text-sm rounded
+              transition-colors hover:border-muted active:scale-[0.98]"
           >
-            ← Back Home
+            Back
           </button>
         </div>
       </div>
@@ -94,16 +91,16 @@ export default function RoomPageContent() {
   // Error states
   if (roomError || joinError) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center space-y-4 max-w-sm">
-          <div className="text-5xl">⚠️</div>
-          <h2 className="text-xl font-bold text-white">Connection Error</h2>
-          <p className="text-red-300 text-sm">{roomError || joinError}</p>
+      <div className="flex items-center justify-center min-h-[100dvh] px-6">
+        <div className="text-center space-y-4 max-w-xs">
+          <h2 className="font-serif text-xl text-primary">Connection error</h2>
+          <p className="text-card-red text-sm">{roomError || joinError}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-6 py-3 bg-gold text-black font-bold rounded-xl transition-all active:scale-95"
+            className="px-5 py-2.5 bg-surface border border-border text-primary text-sm rounded
+              transition-colors hover:border-muted active:scale-[0.98]"
           >
-            🔄 Retry
+            Retry
           </button>
         </div>
       </div>

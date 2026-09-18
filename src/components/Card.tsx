@@ -12,57 +12,58 @@ interface CardProps {
 }
 
 export default function Card({ card, faceUp, selected, onClick, size = 'md', isWild }: CardProps) {
-  // Sizes: sm = w-12 h-18, md = w-16 h-24, lg = w-20 h-30
   const sizeClasses = {
-    sm: 'w-12 h-[72px] text-xs',
-    md: 'w-16 h-24 text-sm',
-    lg: 'w-20 h-[120px] text-base',
+    sm: 'w-10 h-[60px] text-[10px]',
+    md: 'w-14 h-[84px] text-xs',
+    lg: 'w-[72px] h-[108px] text-sm',
+  };
+
+  const suitSize = {
+    sm: 'text-base',
+    md: 'text-xl',
+    lg: 'text-2xl',
   };
 
   if (!faceUp || !card) {
-    // Card back - decorative pattern
     return (
       <div
-        className={`${sizeClasses[size]} rounded-lg bg-gradient-to-br from-card-back to-blue-900 
-          border-2 border-blue-400/30 shadow-card flex items-center justify-center
-          ${onClick ? 'cursor-pointer hover:shadow-card-hover transform hover:-translate-y-1 transition-all' : ''}
-          ${selected ? 'ring-2 ring-gold -translate-y-2' : ''}`}
+        className={`${sizeClasses[size]} rounded bg-surface border border-border
+          flex items-center justify-center select-none
+          ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''}
+          ${selected ? 'ring-1 ring-accent -translate-y-1.5' : ''}`}
         onClick={onClick}
       >
-        <div className="w-3/4 h-3/4 rounded border border-blue-400/20 flex items-center justify-center">
-          <span className="text-blue-300/50 text-2xl">🂠</span>
-        </div>
+        <div className="w-5 h-7 rounded-sm border border-border/50" />
       </div>
     );
   }
 
   const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
-  const textColor = isRed ? 'text-red-500' : 'text-gray-900';
+  const color = isRed ? 'text-card-red' : 'text-neutral-800';
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-lg bg-white shadow-card 
-        flex flex-col items-center justify-between p-1.5 relative
-        border-2 ${isWild ? 'border-gold shadow-glow' : 'border-gray-200'}
-        ${onClick ? 'cursor-pointer hover:shadow-card-hover transform hover:-translate-y-1 transition-all' : ''}
-        ${selected ? 'ring-2 ring-gold -translate-y-3 shadow-glow' : ''}`}
+      className={`${sizeClasses[size]} rounded bg-white
+        flex flex-col justify-between p-1 relative select-none
+        border ${isWild ? 'border-accent' : 'border-neutral-200'}
+        ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''}
+        ${selected ? 'ring-1 ring-accent -translate-y-2' : ''}`}
       onClick={onClick}
     >
       {isWild && (
-        <div className="absolute -top-1 -right-1 w-4 h-4 bg-gold rounded-full flex items-center justify-center text-[8px] font-bold text-black z-10">
-          W
-        </div>
+        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-accent rounded-full
+          flex items-center justify-center text-[7px] font-bold text-white">W</div>
       )}
-      <div className={`${textColor} font-bold self-start leading-none`}>
+      <div className={`${color} font-semibold leading-none`}>
         <div>{RANK_DISPLAY[card.rank]}</div>
-        <div className="text-xs">{SUIT_SYMBOLS[card.suit]}</div>
+        <div className="text-[8px]">{SUIT_SYMBOLS[card.suit]}</div>
       </div>
-      <div className={`${textColor} text-2xl`}>
+      <div className={`${color} ${suitSize[size]} self-center`}>
         {SUIT_SYMBOLS[card.suit]}
       </div>
-      <div className={`${textColor} font-bold self-end leading-none rotate-180`}>
+      <div className={`${color} font-semibold leading-none self-end rotate-180`}>
         <div>{RANK_DISPLAY[card.rank]}</div>
-        <div className="text-xs">{SUIT_SYMBOLS[card.suit]}</div>
+        <div className="text-[8px]">{SUIT_SYMBOLS[card.suit]}</div>
       </div>
     </div>
   );

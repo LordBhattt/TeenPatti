@@ -21,11 +21,10 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
   const isHost = room.hostId === playerId;
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
 
-  // Best of Four card selection
   const handleCardSelect = (index: number) => {
     if (room.variation !== 'bestOfFour' || !currentPlayer || currentPlayer.hand.length !== 4) return;
-    if (currentPlayer.selectedCards) return; // Already selected
-    
+    if (currentPlayer.selectedCards) return;
+
     setSelectedCards(prev => {
       if (prev.includes(index)) return prev.filter(i => i !== index);
       if (prev.length >= 3) return prev;
@@ -33,7 +32,6 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
     });
   };
 
-  // Confirm card selection for Best of Four
   useEffect(() => {
     if (selectedCards.length === 3 && room.variation === 'bestOfFour') {
       onAction({ type: 'selectCards', selectedIndices: selectedCards });
@@ -41,52 +39,39 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
   }, [selectedCards]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="flex flex-col min-h-screen min-h-[100dvh] safe-top pb-32">
-      {/* Top bar: variation badge + round info */}
-      <div className="flex items-center justify-between px-4 py-2">
-        <div className="bg-black/30 px-3 py-1 rounded-full text-xs font-semibold text-gold">
-          {VARIATION_NAMES[room.variation]}
-        </div>
-        <div className="text-xs text-gray-400">
-          Round {room.round}
-        </div>
+    <div className="table-surface min-h-[100dvh] flex flex-col pb-28">
+
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <span className="text-muted text-xs">{VARIATION_NAMES[room.variation]}</span>
+        <span className="text-muted text-xs">Round {room.round}</span>
       </div>
 
-      {/* Joker card indicator */}
+      {/* Joker indicator */}
       {room.jokerCard && room.variation === 'joker' && (
-        <div className="text-center mb-2">
-          <span className="bg-gold/20 text-gold text-xs px-3 py-1 rounded-full">
-            🃏 Joker: {room.jokerCard.rank} (all {room.jokerCard.rank}s are wild)
-          </span>
-        </div>
+        <p className="text-center text-muted text-xs mb-2">
+          Joker: <span className="text-primary font-serif">{room.jokerCard.rank}</span>
+        </p>
       )}
 
-      {/* Opponents area */}
-      <div className="flex justify-center gap-3 px-4 mb-4">
+      {/* Opponents */}
+      <div className="flex justify-center gap-6 px-4 pt-2 pb-4">
         {opponents.map(id => {
           const p = room.players[id];
           if (!p) return null;
-          const isCurrentTurn = room.currentTurn === id;
-          
+          const isActive = room.currentTurn === id;
+
           return (
             <div
               key={id}
-              className={`flex flex-col items-center p-2 rounded-xl transition-all
-                ${isCurrentTurn ? 'active-turn' : ''}
-                ${p.isFolded ? 'opacity-40' : ''}`}
+              className={`flex flex-col items-center gap-2
+                ${p.isFolded ? 'opacity-25' : ''}`}
             >
-              {/* Avatar + name */}
-              <div className="text-center mb-1">
-                <div className="text-lg mb-0.5">
-                  {p.isFolded ? '💤' : p.hasSeen ? '👁' : '🙈'}
-                </div>
-                <div className="text-xs font-semibold text-white truncate max-w-[80px]">
-                  {p.name}
-                </div>
-                <div className="text-xs text-gold">{p.chips} 💰</div>
+              <div className={`text-center ${isActive ? 'border-l-2 border-accent pl-2' : ''}`}>
+                <p className="font-serif text-sm text-primary">{p.name}</p>
+                <p className="text-muted text-xs font-serif">{p.chips}</p>
               </div>
-              
-              {/* Opponent's cards (face down during play, face up at showdown) */}
+
               <PlayerCards
                 cards={p.hand}
                 faceUp={room.status === 'showdown' || room.status === 'roundEnd'}
@@ -94,40 +79,37 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
                 jokerCard={room.jokerCard}
                 size="sm"
               />
-              
-              {p.isFolded && (
-                <span className="text-xs text-red-400 mt-1">Folded</span>
+
+              {p.isFolded && <span className="text-muted text-[10px]">folded</span>}
+              {!p.isFolded && !p.hasSeen && isActive && (
+                <span className="text-muted text-[10px]">blind</span>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* Pot area */}
-      <div className="flex flex-col items-center mb-4">
-        <div className="bg-black/40 rounded-2xl px-8 py-4 text-center border border-gold/20">
-          <div className="text-xs text-gray-400 uppercase tracking-wider">Pot</div>
-          <div className="text-3xl font-bold text-gold chip-animate">💰 {room.pot}</div>
-          <div className="text-xs text-gray-400 mt-1">Stake: {room.currentBet}</div>
-        </div>
+      {/* Pot — center of the table */}
+      <div className="flex flex-col items-center py-6">
+        <p className="text-muted text-[10px] mb-1">Pot</p>
+        <p className="font-serif text-4xl text-accent">{room.pot}</p>
+        <p className="text-muted text-[10px] mt-1">stake {room.currentBet}</p>
       </div>
 
-      {/* Current player area */}
+      {/* Current player */}
       {currentPlayer && (
-        <div className="flex-1 flex flex-col items-center justify-end px-4 mb-4">
-          {/* Player info */}
-          <div className={`text-center mb-3 p-3 rounded-xl w-full max-w-xs transition-all
-            ${room.currentTurn === playerId ? 'active-turn' : ''}`}>
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-sm font-semibold text-white">{currentPlayer.name}</span>
-              <span className="text-xs bg-gold/20 text-gold px-2 py-0.5 rounded-full">
-                {currentPlayer.hasSeen ? '👁 Seen' : '🙈 Blind'}
-              </span>
+        <div className="flex-1 flex flex-col items-center justify-end px-4 pb-4">
+          {/* Status */}
+          <div className={`text-center mb-3 ${room.currentTurn === playerId ? 'border-l-2 border-accent pl-3' : ''}`}>
+            <p className="font-serif text-base text-primary">{currentPlayer.name}</p>
+            <div className="flex items-center justify-center gap-2 mt-0.5">
+              <span className="font-serif text-sm text-muted">{currentPlayer.chips}</span>
+              <span className="text-border">·</span>
+              <span className="text-muted text-xs">{currentPlayer.hasSeen ? 'seen' : 'blind'}</span>
             </div>
-            <div className="text-sm text-gold font-bold">{currentPlayer.chips} chips</div>
           </div>
 
-          {/* Player's cards */}
+          {/* Cards */}
           <PlayerCards
             cards={currentPlayer.hand}
             faceUp={currentPlayer.hasSeen || room.status === 'roundEnd'}
@@ -138,23 +120,22 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
             size="lg"
           />
 
-          {/* Best of Four selection prompt */}
           {room.variation === 'bestOfFour' && currentPlayer.hand.length === 4 && !currentPlayer.selectedCards && (
-            <p className="text-xs text-gold mt-2 animate-pulse">Tap 3 cards to select your hand</p>
+            <p className="text-muted text-xs mt-2">Tap 3 cards to keep</p>
           )}
 
           {currentPlayer.isFolded && (
-            <div className="text-red-400 text-sm font-semibold mt-2">You folded this round</div>
+            <p className="text-card-red text-xs mt-2">Folded</p>
           )}
         </div>
       )}
 
-      {/* Action Log */}
-      <div className="px-4 mb-4">
+      {/* Action log */}
+      <div className="px-4">
         <ActionLog entries={room.actionLog || []} />
       </div>
 
-      {/* Action Bar */}
+      {/* Action bar */}
       <ActionBar
         room={room}
         playerId={playerId}
@@ -162,7 +143,7 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
         loading={loading}
       />
 
-      {/* Winner Modal */}
+      {/* Winner modal */}
       <WinnerModal
         room={room}
         onNextRound={onNextRound}

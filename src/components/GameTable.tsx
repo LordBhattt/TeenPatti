@@ -6,6 +6,7 @@ import PlayerCards from './PlayerCards';
 import ActionBar from './ActionBar';
 import ActionLog from './ActionLog';
 import WinnerModal from './WinnerModal';
+import RulesModal from './RulesModal';
 
 interface GameTableProps {
   room: Room;
@@ -20,6 +21,7 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
   const opponents = room.playerOrder.filter(id => id !== playerId);
   const isHost = room.hostId === playerId;
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
+  const [showRules, setShowRules] = useState(false);
 
   const handleCardSelect = (index: number) => {
     if (room.variation !== 'bestOfFour' || !currentPlayer || currentPlayer.hand.length !== 4) return;
@@ -46,7 +48,17 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-3">
         <span className="text-muted text-xs">{VARIATION_NAMES[room.variation]}</span>
-        <span className="text-muted text-xs">Round {room.round}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowRules(true)}
+            className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-border
+              text-muted text-[10px] leading-none hover:text-primary hover:border-muted transition-colors"
+            aria-label="Rules"
+          >
+            ?
+          </button>
+          <span className="text-muted text-xs">Round {room.round}</span>
+        </div>
       </div>
 
       {/* Joker indicator */}
@@ -183,6 +195,11 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
         onNextRound={onNextRound}
         isHost={isHost}
       />
+
+      {/* Rules modal */}
+      {showRules && (
+        <RulesModal variation={room.variation} onClose={() => setShowRules(false)} />
+      )}
     </div>
   );
 }

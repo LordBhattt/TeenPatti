@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Room, VARIATION_NAMES } from '@/lib/types';
+import RulesModal from './RulesModal';
 
 interface LobbyProps {
   room: Room;
@@ -10,16 +12,48 @@ interface LobbyProps {
   loading: boolean;
 }
 
+const CHIP_PRESETS = [500, 1000, 2000, 5000];
+
 export default function Lobby({ room, playerId, onUpdateSettings, onStartGame, loading }: LobbyProps) {
   const isHost = room.hostId === playerId;
   const playerCount = room.playerOrder.length;
   const canStart = playerCount >= 2;
+  const [showRules, setShowRules] = useState(false);
+  const [customChips, setCustomChips] = useState(false);
+  const [customChipValue, setCustomChipValue] = useState('');
+  const [chipError, setChipError] = useState('');
+
+  const isPreset = CHIP_PRESETS.includes(room.startingChips);
 
   const copyRoomCode = () => {
     const url = `${window.location.origin}/room/${room.id}`;
     navigator.clipboard.writeText(url).catch(() => {
       navigator.clipboard.writeText(room.id);
     });
+  };
+
+  const handleCustomChipChange = (val: string) => {
+    setCustomChipValue(val);
+    setChipError('');
+    const num = parseInt(val, 10);
+    if (!val.trim()) return;
+    if (isNaN(num) || num !== parseFloat(val) || num < 100) {
+      setChipError('Min 100, whole numbers only');
+      return;
+    }
+    onUpdateSettings({ startingChips: num });
+  };
+
+  const selectPreset = (amt: number) => {
+    setCustomChips(false);
+    setCustomChipValue('');
+    setChipError('');
+    onUpdateSettings({ startingChips: amt });
+  };
+
+  const enableCustom = () => {
+    setCustomChips(true);
+    setCustomChipValue(isPreset ? '' : String(room.startingChips));
   };
 
   return (
@@ -68,9 +102,18 @@ export default function Lobby({ room, playerId, onUpdateSettings, onStartGame, l
         {/* Settings */}
         {isHost ? (
           <div className="space-y-5">
-            {/* Variation */}
+            {/* Variation + rules button */}
             <div>
-              <label className="text-muted text-xs block mb-1.5">Variation</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-muted text-xs">Variation</label>
+                <button
+                  onClick={() => setShowRules(true)}
+                  className="text-muted text-xs hover:text-primary transition-colors flex items-center gap-1"
+                >
+                  <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-muted text-[9px] leading-none">?</span>
+                  How to play
+                </button>
+              </div>
               <select
                 value={room.variation}
                 onChange={(e) => onUpdateSettings({ variation: e.target.value })}
@@ -106,26 +149,64 @@ export default function Lobby({ room, playerId, onUpdateSettings, onStartGame, l
             <div>
               <label className="text-muted text-xs block mb-1.5">Starting chips</label>
               <div className="flex gap-2">
-                {[500, 1000, 2000, 5000].map(amt => (
+                {CHIP_PRESETS.map(amt => (
                   <button
                     key={amt}
-                    onClick={() => onUpdateSettings({ startingChips: amt })}
+                    onClick={() => selectPreset(amt)}
                     className={`flex-1 py-1.5 rounded text-sm font-serif transition-colors
-                      ${room.startingChips === amt
+                      ${room.startingChips === amt && !customChips
                         ? 'bg-accent text-white'
                         : 'bg-surface border border-border text-muted hover:text-primary'}`}
                   >
                     {amt}
                   </button>
                 ))}
+                <button
+                  onClick={enableCustom}
+                  className={`flex-1 py-1.5 rounded text-sm transition-colors
+                    ${customChips || (!isPreset)
+                      ? 'bg-accent text-white'
+                      : 'bg-surface border border-border text-muted hover:text-primary'}`}
+                >
+                  Custom
+                </button>
               </div>
+              {(customChips || !isPreset) && (
+                <div className="mt-2">
+                  <input
+                    type="number"
+                    value={customChipValue || (!isPreset ? String(room.startingChips) : '')}
+                    onChange={(e) => handleCustomChipChange(e.target.value)}
+                    placeholder="Enter amount (min 100)"
+                    min={100}
+                    className="w-full bg-surface border border-border rounded px-3 py-2
+                      text-primary text-center font-serif text-sm
+                      placeholder-muted/50 focus:outline-none focus:border-accent transition-colors"
+                  />
+                  {chipError && <p className="text-card-red text-xs mt-1 text-center">{chipError}</p>}
+                </div>
+              )}
             </div>
           </div>
         ) : (
-          <div className="flex justify-between text-sm">
-            <div><span className="text-muted">Variation</span> <span className="text-primary ml-2">{VARIATION_NAMES[room.variation]}</span></div>
-            <div><span className="text-muted">Boot</span> <span className="text-primary font-serif ml-1">{room.bootAmount}</span></div>
-            <div><span className="text-muted">Chips</span> <span className="text-primary font-serif ml-1">{room.startingChips}</span></div>
+          <div className="space-y-3">
+            <div className="flex justify-between text-sm">
+              <div>
+                <span className="text-muted">Variation</span>
+                <span className="text-primary ml-2">{VARIATION_NAMES[room.variation]}</span>
+              </div>
+              <button
+                onClick={() => setShowRules(true)}
+                className="text-muted text-xs hover:text-primary transition-colors flex items-center gap-1"
+              >
+                <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-muted text-[9px] leading-none">?</span>
+                Rules
+              </button>
+            </div>
+            <div className="flex justify-between text-sm">
+              <div><span className="text-muted">Boot</span> <span className="text-primary font-serif ml-1">{room.bootAmount}</span></div>
+              <div><span className="text-muted">Chips</span> <span className="text-primary font-serif ml-1">{room.startingChips}</span></div>
+            </div>
           </div>
         )}
 
@@ -145,6 +226,11 @@ export default function Lobby({ room, playerId, onUpdateSettings, onStartGame, l
           <p className="text-center text-muted text-sm">Waiting for host to start...</p>
         )}
       </div>
+
+      {/* Rules modal */}
+      {showRules && (
+        <RulesModal variation={room.variation} onClose={() => setShowRules(false)} />
+      )}
     </div>
   );
 }

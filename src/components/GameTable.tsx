@@ -13,13 +13,18 @@ interface GameTableProps {
   playerId: string;
   onAction: (action: PlayerAction) => void;
   onNextRound: () => void;
+  onResetGame?: () => void;
   loading: boolean;
 }
 
-export default function GameTable({ room, playerId, onAction, onNextRound, loading }: GameTableProps) {
+export default function GameTable({ room, playerId, onAction, onNextRound, onResetGame, loading }: GameTableProps) {
   const currentPlayer = room.players[playerId];
   const opponents = room.playerOrder.filter(id => id !== playerId);
-  const isHost = room.hostId === playerId;
+  // Active host fallback if original host disconnected
+  const activeHostId = room.players[room.hostId]?.isConnected
+    ? room.hostId
+    : (room.playerOrder.find(id => room.players[id]?.isConnected) || room.hostId);
+  const isHost = activeHostId === playerId;
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [showRules, setShowRules] = useState(false);
 
@@ -88,7 +93,7 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
       )}
 
       {/* Opponents */}
-      <div className="flex justify-center gap-6 px-4 pt-2 pb-4">
+      <div className="flex justify-center gap-2 sm:gap-6 px-2 sm:px-4 pt-2 pb-4 overflow-x-auto max-w-full">
         {opponents.map(id => {
           const p = room.players[id];
           if (!p) return null;
@@ -97,8 +102,8 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
           return (
             <div
               key={id}
-              className={`flex flex-col items-center gap-2
-                ${p.isFolded ? 'opacity-25' : ''}`}
+              className={`flex flex-col items-center gap-2 shrink-0
+                ${p.isFolded && room.status !== 'roundEnd' ? 'opacity-30' : ''}`}
             >
               <div className={`text-center ${isActive ? 'border-l-2 border-accent pl-2' : ''}`}>
                 <p className="font-serif text-sm text-primary">{p.name}</p>
@@ -107,7 +112,7 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
 
               <PlayerCards
                 cards={p.hand}
-                faceUp={room.status === 'showdown' || room.status === 'roundEnd'}
+                faceUp={room.status === 'showdown' || room.status === 'roundEnd' || p.hasSeen}
                 variation={room.variation}
                 jokerCard={room.jokerCard}
                 personalWilds={p.personalWilds}
@@ -115,7 +120,11 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
                 size="sm"
               />
 
-              {p.isFolded && <span className="text-muted text-[10px]">folded</span>}
+              {p.isFolded && (
+                <span className="text-muted text-[10px]">
+                  {room.status === 'roundEnd' ? '(folded)' : 'folded'}
+                </span>
+              )}
               {!p.isFolded && !p.hasSeen && isActive && (
                 <span className="text-muted text-[10px]">blind</span>
               )}
@@ -193,6 +202,7 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
       <WinnerModal
         room={room}
         onNextRound={onNextRound}
+        onResetGame={onResetGame}
         isHost={isHost}
       />
 

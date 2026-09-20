@@ -163,31 +163,56 @@ export function isWildCard(
 
 export function getHiLowWildIndices(cards: Card[]): number[] {
   if (cards.length < 3) return [];
-  const values = cards.map(c => c.value);
+  const v0 = cards[0].value;
+  const v1 = cards[1].value;
+  const v2 = cards[2].value;
+
+  // If all three have the same value, it's already a natural trail
+  if (v0 === v1 && v1 === v2) {
+    return [0, 1];
+  }
+
+  // If there's a pair, that pair counts as the jokers (exactly 2 jokers)
+  if (v0 === v1) return [0, 1];
+  if (v1 === v2) return [1, 2];
+  if (v0 === v2) return [0, 2];
+
+  // All 3 cards distinct: highest and lowest are jokers
+  const values = [v0, v1, v2];
   const maxVal = Math.max(...values);
   const minVal = Math.min(...values);
-  const wilds: number[] = [];
-  for (let i = 0; i < cards.length; i++) {
-    if (cards[i].value === maxVal || cards[i].value === minVal) {
-      wilds.push(i);
-    }
-  }
-  return wilds;
+  const maxIdx = values.indexOf(maxVal);
+  const minIdx = values.indexOf(minVal);
+  return [maxIdx, minIdx];
+}
+
+function checkKMBPair(c1: Card, c2: Card): 'bliss' | 'kiss' | 'miss' | 'none' {
+  const v1 = c1.value;
+  const v2 = c2.value;
+  const diff = Math.abs(v1 - v2);
+  if (diff === 0) return 'bliss';
+  if (diff === 1 || (v1 === 14 && v2 === 2) || (v1 === 2 && v2 === 14)) return 'kiss';
+  if (diff === 2 || (v1 === 14 && v2 === 3) || (v1 === 3 && v2 === 14)) return 'miss';
+  return 'none';
 }
 
 export function getKMBPattern(cards: Card[]): { pattern: 'kiss' | 'miss' | 'bliss' | 'none'; wildIndices: number[] } {
   if (cards.length < 3) return { pattern: 'none', wildIndices: [] };
-  const v0 = cards[0].value;
-  const v1 = cards[1].value;
-  const diff = Math.abs(v0 - v1);
 
-  if (diff === 0) return { pattern: 'bliss', wildIndices: [2] };
-  if (diff === 1) return { pattern: 'kiss', wildIndices: [2] };
-  // Handle A-2 as kiss (values 14 and 2, diff=12, but they're consecutive)
-  if ((v0 === 14 && v1 === 2) || (v0 === 2 && v1 === 14)) return { pattern: 'kiss', wildIndices: [2] };
-  if (diff === 2) return { pattern: 'miss', wildIndices: [2] };
-  // Handle A-3 as miss
-  if ((v0 === 14 && v1 === 3) || (v0 === 3 && v1 === 14)) return { pattern: 'miss', wildIndices: [2] };
+  // Check pairs with priority: bliss (pair) > kiss (consecutive) > miss (skip one)
+  const pairs: [number, number][] = [[0, 1], [0, 2], [1, 2]];
+  const patterns: ('bliss' | 'kiss' | 'miss')[] = ['bliss', 'kiss', 'miss'];
+
+  for (const targetPattern of patterns) {
+    for (const [i, j] of pairs) {
+      if (checkKMBPair(cards[i], cards[j]) === targetPattern) {
+        // The remaining third card becomes the joker
+        const wildIdx = [0, 1, 2].find(k => k !== i && k !== j)!;
+        return { pattern: targetPattern, wildIndices: [wildIdx] };
+      }
+    }
+  }
+
   return { pattern: 'none', wildIndices: [] };
 }
 

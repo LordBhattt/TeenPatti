@@ -16,7 +16,7 @@ export default function RoomPageContent() {
   const roomCode = (params.code as string)?.toUpperCase();
   const { playerId, playerName, isLoaded } = usePlayer();
   const { room, loading: roomLoading, error: roomError } = useRoom(roomCode);
-  const { performAction, startRound, updateSettings, loading: actionLoading } = useGameActions(roomCode);
+  const { performAction, startRound, resetGame, updateSettings, loading: actionLoading } = useGameActions(roomCode);
   const [joinAttempted, setJoinAttempted] = useState(false);
   const [joinError, setJoinError] = useState('');
 
@@ -129,6 +129,7 @@ export default function RoomPageContent() {
       playerId={playerId}
       onAction={handleAction}
       onNextRound={handleNextRound}
+      onResetGame={resetGame}
       loading={actionLoading}
     />
   );

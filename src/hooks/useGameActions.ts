@@ -5,6 +5,7 @@ import {
   performActionInDB,
   startRoundInDB,
   updateRoomSettings,
+  resetGameInDB,
 } from '@/lib/firebaseOperations';
 
 export function useGameActions(roomCode: string) {
@@ -35,6 +36,18 @@ export function useGameActions(roomCode: string) {
     }
   }, [roomCode]);
 
+  const resetGame = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await resetGameInDB(roomCode);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reset game');
+    } finally {
+      setLoading(false);
+    }
+  }, [roomCode]);
+
   const updateSettings = useCallback(async (settings: { variation?: string; bootAmount?: number; startingChips?: number }) => {
     setLoading(true);
     setError(null);
@@ -47,5 +60,5 @@ export function useGameActions(roomCode: string) {
     }
   }, [roomCode]);
 
-  return { performAction, startRound, updateSettings, loading, error };
+  return { performAction, startRound, resetGame, updateSettings, loading, error };
 }

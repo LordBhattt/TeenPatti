@@ -219,9 +219,18 @@ function getActivePlayers(room: Room): string[] {
 
 function getNextTurn(room: Room, currentId: string): string {
   const active = getActivePlayers(room);
-  const idx = active.indexOf(currentId);
-  if (idx === -1) return active[0];
-  return active[(idx + 1) % active.length];
+  if (active.length === 0) return '';
+  const order = room.playerOrder;
+  const currentIdx = order.indexOf(currentId);
+  if (currentIdx === -1) return active[0];
+
+  for (let i = 1; i <= order.length; i++) {
+    const nextId = order[(currentIdx + i) % order.length];
+    if (active.includes(nextId)) {
+      return nextId;
+    }
+  }
+  return active[0];
 }
 
 // ── Action Handlers ──────────────────────────────────────────
@@ -377,17 +386,14 @@ function handleRaise(room: Room, playerId: string, _amount?: number): Room {
   const player = room.players[playerId];
   const isSeen = player.hasSeen;
   
-  // Raise doubles the current bet (blind value)
-  const newBet = room.currentBet * 2;
+  // Cap the bet at a reasonable limit (pot limit style)
+  const maxBet = room.bootAmount * 128; // Max 128x boot
+  const newBet = Math.min(room.currentBet * 2, maxBet);
   const betAmount = isSeen ? newBet * 2 : newBet; // Seen pays 2x the new blind stake
   
   if (player.chips < betAmount) {
     throw new Error('Not enough chips');
   }
-
-  // Cap the bet at a reasonable limit (pot limit style)
-  const maxBet = room.bootAmount * 128; // Max 128x boot
-  const cappedBet = Math.min(newBet, maxBet);
 
   const log: ActionLogEntry = {
     playerId,
@@ -399,7 +405,7 @@ function handleRaise(room: Room, playerId: string, _amount?: number): Room {
 
   const updatedRoom: Room = {
     ...room,
-    currentBet: cappedBet,
+    currentBet: newBet,
     pot: room.pot + betAmount,
     players: {
       ...room.players,
@@ -545,13 +551,17 @@ function handleSelectCards(room: Room, playerId: string, selectedIndices: number
   if (room.variation !== 'bestOfFour') {
     throw new Error('Card selection only available in Best of Four');
   }
-  if (selectedIndices.length !== 3) {
-    throw new Error('Must select exactly 3 cards');
+  const unique = Array.from(new Set(selectedIndices));
+  if (unique.length !== 3 || unique.some(i => i < 0 || i > 3)) {
+    throw new Error('Must select exactly 3 unique cards');
   }
 
   const player = room.players[playerId];
-  if (player.hand.length !== 4) {
+  if (!player || player.hand.length !== 4) {
     throw new Error('Player does not have 4 cards');
+  }
+  if (player.selectedCards) {
+    throw new Error('Cards already selected');
   }
 
   return {
@@ -584,17 +594,23 @@ function resolveWinner(room: Room, winnerId: string): Room {
     timestamp: Date.now(),
   };
 
+  // Reveal ALL players' cards (including folded players) so everyone can see what was held
+  const updatedPlayers: Record<string, Player> = {};
+  for (const [id, p] of Object.entries(room.players)) {
+    updatedPlayers[id] = {
+      ...p,
+      hasSeen: true,
+    };
+  }
+  if (updatedPlayers[winnerId]) {
+    updatedPlayers[winnerId].chips += room.pot;
+  }
+
   return {
     ...room,
     status: 'roundEnd',
     currentTurn: '',
-    players: {
-      ...room.players,
-      [winnerId]: {
-        ...winner,
-        chips: winner.chips + room.pot,
-      },
-    },
+    players: updatedPlayers,
     actionLog: [...room.actionLog, log],
     lastWinner: {
       playerId: winnerId,
@@ -626,21 +642,32 @@ export function getValidActions(room: Room, playerId: string): PlayerAction['typ
   const actions: PlayerAction['type'][] = ['fold'];
   const active = getActivePlayers(room);
 
+  // Check costs against player's chip balance
+  const blindCost = room.currentBet;
+  const seenCost = room.currentBet * 2;
+  const maxBet = room.bootAmount * 128;
+  const newBet = Math.min(room.currentBet * 2, maxBet);
+  const raiseCost = player.hasSeen ? newBet * 2 : newBet;
+  const showCost = player.hasSeen ? room.currentBet * 2 : room.currentBet;
+
   if (!player.hasSeen) {
-    actions.push('see');   // Can look at cards
-    actions.push('blind'); // Can bet blind
+    actions.push('see'); // Can always look at cards
+    if (player.chips >= blindCost) {
+      actions.push('blind'); // Can bet blind if affordable
+    }
   } else {
-    actions.push('chaal'); // Can bet (seen)
+    if (player.chips >= seenCost) {
+      actions.push('chaal'); // Can bet seen if affordable
+    }
   }
 
-  // Raise: available if bet hasn't hit cap
-  const maxBet = room.bootAmount * 128;
-  if (room.currentBet * 2 <= maxBet) {
+  // Raise: available if bet hasn't hit cap AND player has enough chips
+  if (room.currentBet < maxBet && player.chips >= raiseCost) {
     actions.push('raise');
   }
 
-  // Show: only when 2 players remain
-  if (active.length === 2) {
+  // Show: only when 2 players remain AND player has enough chips
+  if (active.length === 2 && player.chips >= showCost) {
     actions.push('show');
   }
 

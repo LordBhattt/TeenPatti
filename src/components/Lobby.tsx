@@ -15,13 +15,18 @@ interface LobbyProps {
 const CHIP_PRESETS = [500, 1000, 2000, 5000];
 
 export default function Lobby({ room, playerId, onUpdateSettings, onStartGame, loading }: LobbyProps) {
-  const isHost = room.hostId === playerId;
+  // Active host fallback if original host disconnected
+  const activeHostId = room.players[room.hostId]?.isConnected
+    ? room.hostId
+    : (room.playerOrder.find(id => room.players[id]?.isConnected) || room.hostId);
+  const isHost = activeHostId === playerId;
+  const connectedPlayers = room.playerOrder.filter(id => room.players[id]?.isConnected);
   const playerCount = room.playerOrder.length;
-  const canStart = playerCount >= 2;
   const [showRules, setShowRules] = useState(false);
   const [customChips, setCustomChips] = useState(false);
   const [customChipValue, setCustomChipValue] = useState('');
   const [chipError, setChipError] = useState('');
+  const canStart = playerCount >= 2 && !chipError && room.startingChips >= 100 && connectedPlayers.length >= 2;
 
   const isPreset = CHIP_PRESETS.includes(room.startingChips);
 

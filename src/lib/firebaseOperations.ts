@@ -9,11 +9,10 @@ import {
   onValue,
   runTransaction,
   onDisconnect,
-  off,
   DataSnapshot,
 } from 'firebase/database';
 import { database } from './firebase';
-import { Room, PlayerAction } from './types';
+import { Room, Player, PlayerAction } from './types';
 import {
   createRoom as createRoomState,
   joinRoom as joinRoomState,
@@ -75,7 +74,18 @@ export async function updateRoomSettings(
     const room = currentData as Room;
     if (room.status !== 'waiting') return currentData;
     
-    const updated = { ...room };
+    const updatedPlayers: Record<string, Player> = {};
+    for (const [id, p] of Object.entries(room.players || {})) {
+      updatedPlayers[id] = {
+        ...p,
+        chips: settings.startingChips ?? p.chips,
+      };
+    }
+
+    const updated: Room = {
+      ...room,
+      players: updatedPlayers,
+    };
     if (settings.variation) updated.variation = settings.variation as Room['variation'];
     if (settings.bootAmount) {
       updated.bootAmount = settings.bootAmount;
@@ -83,12 +93,6 @@ export async function updateRoomSettings(
     }
     if (settings.startingChips) {
       updated.startingChips = settings.startingChips;
-      // Update all players' chips too
-      for (const id of updated.playerOrder) {
-        if (updated.players[id]) {
-          updated.players[id].chips = settings.startingChips;
-        }
-      }
     }
     
     return sanitizeForFirebase(updated);
@@ -115,6 +119,49 @@ export async function startRoundInDB(roomCode: string): Promise<void> {
 }
 
 /**
+ * Reset game when over — refills everyone's chips and sets status back to 'waiting'.
+ */
+export async function resetGameInDB(roomCode: string): Promise<void> {
+  const roomRef = ref(database, `rooms/${roomCode}`);
+
+  await runTransaction(roomRef, (currentData) => {
+    if (!currentData) return currentData;
+    const room = currentData as Room;
+    const updatedPlayers: Record<string, Player> = {};
+    for (const [id, p] of Object.entries(room.players || {})) {
+      updatedPlayers[id] = {
+        ...p,
+        chips: room.startingChips,
+        hand: [],
+        hasSeen: false,
+        isFolded: false,
+        currentRoundBet: 0,
+        selectedCards: undefined,
+        personalWilds: undefined,
+        kmbPattern: undefined,
+      };
+    }
+    const updated: Room = {
+      ...room,
+      status: 'waiting',
+      pot: 0,
+      currentBet: room.bootAmount,
+      currentTurn: '',
+      players: updatedPlayers,
+      round: 0,
+      lastWinner: undefined,
+      actionLog: [{
+        playerId: 'system',
+        playerName: 'System',
+        action: 'Game reset. All players received fresh chips.',
+        timestamp: Date.now(),
+      }],
+    };
+    return sanitizeForFirebase(updated);
+  });
+}
+
+/**
  * Perform a player action via transaction (atomic state mutation).
  */
 export async function performActionInDB(
@@ -123,6 +170,7 @@ export async function performActionInDB(
   action: PlayerAction,
 ): Promise<void> {
   const roomRef = ref(database, `rooms/${roomCode}`);
+  let errorMessage = '';
   
   const result = await runTransaction(roomRef, (currentData) => {
     if (!currentData) return currentData;
@@ -131,14 +179,16 @@ export async function performActionInDB(
       const room = currentData as Room;
       const updatedRoom = handleActionState(room, playerId, action);
       return sanitizeForFirebase(updatedRoom);
-    } catch {
+    } catch (err: unknown) {
+      errorMessage = err instanceof Error ? err.message : String(err || 'Action invalid');
       // Action invalid — abort
       return undefined;
     }
   });
 
   if (!result.committed) {
-    throw new Error('Action failed — please try again');
+    const finalMsg = errorMessage || 'Action failed — please try again';
+    throw new Error(finalMsg);
   }
 }
 
@@ -154,7 +204,7 @@ export function subscribeToRoom(
 ): () => void {
   const roomRef = ref(database, `rooms/${roomCode}`);
   
-  onValue(
+  const unsubscribe = onValue(
     roomRef,
     (snapshot: DataSnapshot) => {
       if (snapshot.exists()) {
@@ -168,7 +218,7 @@ export function subscribeToRoom(
     },
   );
 
-  return () => off(roomRef);
+  return unsubscribe;
 }
 
 /**

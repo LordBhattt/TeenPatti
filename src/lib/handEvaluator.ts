@@ -1,5 +1,5 @@
 // ============================================================
-// Hand Evaluator — supports all 5 Teen Patti variations
+// Hand Evaluator — supports all 10 Teen Patti variations
 // ============================================================
 
 import {
@@ -135,14 +135,103 @@ const RANK_VALUE_MAP: Record<Rank, number> = {
 /**
  * Check if a card is a wild card given the variation context.
  */
-export function isWildCard(card: Card, variation: GameVariation, jokerCard?: Card): boolean {
+export function isWildCard(
+  card: Card,
+  variation: GameVariation,
+  jokerCard?: Card,
+  cardIndex?: number,
+  personalWilds?: number[],
+  tableJokers?: Card[],
+): boolean {
   if (variation === 'ak47') {
     return card.rank === 'A' || card.rank === 'K' || card.rank === '4' || card.rank === '7';
   }
   if (variation === 'joker' && jokerCard) {
     return card.rank === jokerCard.rank;
   }
+  if (variation === 'lallanKallan') {
+    return card.suit === 'spades' || card.suit === 'clubs';
+  }
+  if ((variation === 'hiLowJoker' || variation === 'kissMissBliss') && personalWilds && cardIndex !== undefined) {
+    return personalWilds.includes(cardIndex);
+  }
+  if (variation === 'rotatingJoker' && tableJokers) {
+    return tableJokers.some(j => j.rank === card.rank);
+  }
   return false;
+}
+
+export function getHiLowWildIndices(cards: Card[]): number[] {
+  if (cards.length < 3) return [];
+  const values = cards.map(c => c.value);
+  const maxVal = Math.max(...values);
+  const minVal = Math.min(...values);
+  const wilds: number[] = [];
+  for (let i = 0; i < cards.length; i++) {
+    if (cards[i].value === maxVal || cards[i].value === minVal) {
+      wilds.push(i);
+    }
+  }
+  return wilds;
+}
+
+export function getKMBPattern(cards: Card[]): { pattern: 'kiss' | 'miss' | 'bliss' | 'none'; wildIndices: number[] } {
+  if (cards.length < 3) return { pattern: 'none', wildIndices: [] };
+  const v0 = cards[0].value;
+  const v1 = cards[1].value;
+  const diff = Math.abs(v0 - v1);
+
+  if (diff === 0) return { pattern: 'bliss', wildIndices: [2] };
+  if (diff === 1) return { pattern: 'kiss', wildIndices: [2] };
+  // Handle A-2 as kiss (values 14 and 2, diff=12, but they're consecutive)
+  if ((v0 === 14 && v1 === 2) || (v0 === 2 && v1 === 14)) return { pattern: 'kiss', wildIndices: [2] };
+  if (diff === 2) return { pattern: 'miss', wildIndices: [2] };
+  // Handle A-3 as miss
+  if ((v0 === 14 && v1 === 3) || (v0 === 3 && v1 === 14)) return { pattern: 'miss', wildIndices: [2] };
+  return { pattern: 'none', wildIndices: [] };
+}
+
+function cardPointValue(card: Card): number {
+  if (card.rank === 'A') return 1;
+  if (card.rank === 'J' || card.rank === 'Q' || card.rank === 'K') return 10;
+  return card.value; // 2-10
+}
+
+export function evaluate999Hand(cards: Card[]): HandEvaluation {
+  const hand = cards.slice(0, 3);
+  const total = hand.reduce((sum, c) => sum + cardPointValue(c), 0);
+  const isTripleNine = hand.every(c => c.rank === '9');
+
+  if (isTripleNine) {
+    return {
+      type: HandType.TRAIL,
+      values: [999],
+      displayName: 'Triple 9 — 27 points',
+    };
+  }
+
+  const distance = Math.abs(27 - total);
+  return {
+    type: HandType.HIGH_CARD,
+    values: [100 - distance, total],
+    displayName: distance === 0 ? '27 points — perfect' : `${total} points (${distance} from 27)`,
+  };
+}
+
+function evaluateHandWithWildIndices(cards: Card[], wildIndices: number[]): HandEvaluation {
+  if (wildIndices.length === 0) return evaluateHand(cards);
+  if (wildIndices.length === 3) {
+    return { type: HandType.TRAIL, values: [14], displayName: 'Trail of As (Wild)' };
+  }
+  let bestEval: HandEvaluation = evaluateHand(cards);
+  const substitutions = generateSubstitutions(cards, wildIndices);
+  for (const sub of substitutions) {
+    const eval_ = evaluateHand(sub);
+    if (compareEvaluations(eval_, bestEval) > 0) {
+      bestEval = { ...eval_, displayName: eval_.displayName + ' (Wild)' };
+    }
+  }
+  return bestEval;
 }
 
 /**
@@ -250,6 +339,19 @@ export function compareEvaluationsMuflis(a: HandEvaluation, b: HandEvaluation): 
   return -compareEvaluations(a, b);
 }
 
+function compare999Evaluations(a: HandEvaluation, b: HandEvaluation): number {
+  // Triple 9 (values[0] === 999) beats everything
+  const aTriple = a.values[0] === 999;
+  const bTriple = b.values[0] === 999;
+  if (aTriple && !bTriple) return 1;
+  if (!aTriple && bTriple) return -1;
+  if (aTriple && bTriple) return 0;
+  // Compare closeness to 27 (values[0] = 100 - distance, higher is better)
+  if (a.values[0] !== b.values[0]) return a.values[0] - b.values[0];
+  // Tiebreak: higher total wins
+  return (a.values[1] || 0) - (b.values[1] || 0);
+}
+
 // ── Best of Four ─────────────────────────────────────────────
 
 /**
@@ -291,8 +393,15 @@ export function evaluatePlayerHand(
   variation: GameVariation,
   jokerCard?: Card,
   selectedIndices?: number[],
+  personalWilds?: number[],
+  tableJokers?: Card[],
 ): HandEvaluation {
-  // Best of Four: use selected 3 cards (or auto-best)
+  // 999 — completely different scoring
+  if (variation === 'nineNineNine') {
+    return evaluate999Hand(cards);
+  }
+
+  // Best of Four
   if (variation === 'bestOfFour' && cards.length === 4) {
     if (selectedIndices && selectedIndices.length === 3) {
       return evaluateHand(selectedIndices.map(i => cards[i]));
@@ -300,15 +409,38 @@ export function evaluatePlayerHand(
     return bestOfFourEvaluation(cards).evaluation;
   }
 
-  // Ensure 3-card hand
   const hand = cards.slice(0, 3);
 
-  // Wild-card variations
+  // AK-47 / Joker — use existing evaluateHandWithWilds
   if (variation === 'ak47' || variation === 'joker') {
     return evaluateHandWithWilds(hand, variation, jokerCard);
   }
 
-  // Classic and Muflis use same evaluation; Muflis reverses comparison
+  // Lallan-Kallan: black cards are wild
+  if (variation === 'lallanKallan') {
+    const wilds = hand.map((c, i) => (c.suit === 'spades' || c.suit === 'clubs') ? i : -1).filter(i => i >= 0);
+    return evaluateHandWithWildIndices(hand, wilds);
+  }
+
+  // Hi-Low Joker: per-player wilds
+  if (variation === 'hiLowJoker') {
+    const wilds = personalWilds || getHiLowWildIndices(hand);
+    return evaluateHandWithWildIndices(hand, wilds);
+  }
+
+  // Kiss-Miss-Bliss: per-player wilds (index 2 if pattern found)
+  if (variation === 'kissMissBliss') {
+    const wilds = personalWilds || getKMBPattern(hand).wildIndices;
+    return evaluateHandWithWildIndices(hand, wilds);
+  }
+
+  // Rotating Joker: table jokers are wild
+  if (variation === 'rotatingJoker' && tableJokers) {
+    const wilds = hand.map((c, i) => tableJokers.some(j => j.rank === c.rank) ? i : -1).filter(i => i >= 0);
+    return evaluateHandWithWildIndices(hand, wilds);
+  }
+
+  // Classic and Muflis
   return evaluateHand(hand);
 }
 
@@ -323,12 +455,18 @@ export function comparePlayerHands(
   jokerCard?: Card,
   selectedA?: number[],
   selectedB?: number[],
+  personalWildsA?: number[],
+  personalWildsB?: number[],
+  tableJokers?: Card[],
 ): number {
-  const evalA = evaluatePlayerHand(handA, variation, jokerCard, selectedA);
-  const evalB = evaluatePlayerHand(handB, variation, jokerCard, selectedB);
+  const evalA = evaluatePlayerHand(handA, variation, jokerCard, selectedA, personalWildsA, tableJokers);
+  const evalB = evaluatePlayerHand(handB, variation, jokerCard, selectedB, personalWildsB, tableJokers);
 
   if (variation === 'muflis') {
     return compareEvaluationsMuflis(evalA, evalB);
+  }
+  if (variation === 'nineNineNine') {
+    return compare999Evaluations(evalA, evalB);
   }
   return compareEvaluations(evalA, evalB);
 }
@@ -338,9 +476,10 @@ export function comparePlayerHands(
  * Returns the winning player's ID.
  */
 export function determineWinner(
-  players: Record<string, { hand: Card[]; isFolded: boolean; selectedCards?: number[] }>,
+  players: Record<string, { hand: Card[]; isFolded: boolean; selectedCards?: number[]; personalWilds?: number[] }>,
   variation: GameVariation,
   jokerCard?: Card,
+  tableJokers?: Card[],
 ): { winnerId: string; evaluation: HandEvaluation } {
   const activePlayers = Object.entries(players).filter(([, p]) => !p.isFolded);
   
@@ -349,23 +488,25 @@ export function determineWinner(
     const [id, p] = activePlayers[0];
     return {
       winnerId: id,
-      evaluation: evaluatePlayerHand(p.hand, variation, jokerCard, p.selectedCards),
+      evaluation: evaluatePlayerHand(p.hand, variation, jokerCard, p.selectedCards, p.personalWilds, tableJokers),
     };
   }
 
   let winnerId = activePlayers[0][0];
-  let winnerHand = activePlayers[0][1];
+  let winnerData = activePlayers[0][1];
 
   for (let i = 1; i < activePlayers.length; i++) {
     const [id, p] = activePlayers[i];
     const cmp = comparePlayerHands(
-      winnerHand.hand, p.hand, variation, jokerCard,
-      winnerHand.selectedCards, p.selectedCards
+      winnerData.hand, p.hand, variation, jokerCard,
+      winnerData.selectedCards, p.selectedCards,
+      winnerData.personalWilds, p.personalWilds,
+      tableJokers
     );
     if (cmp < 0) {
       // Challenger wins
       winnerId = id;
-      winnerHand = p;
+      winnerData = p;
     } else if (cmp === 0) {
       // Tie: player who comes later in the comparison loses (show requester loses)
       // Keep current winner
@@ -374,6 +515,6 @@ export function determineWinner(
 
   return {
     winnerId,
-    evaluation: evaluatePlayerHand(winnerHand.hand, variation, jokerCard, winnerHand.selectedCards),
+    evaluation: evaluatePlayerHand(winnerData.hand, variation, jokerCard, winnerData.selectedCards, winnerData.personalWilds, tableJokers),
   };
 }

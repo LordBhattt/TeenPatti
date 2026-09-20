@@ -5,7 +5,7 @@
 
 import { Room, Player, PlayerAction, ActionLogEntry, GameVariation, Card } from './types';
 import { dealCards } from './deck';
-import { evaluatePlayerHand, comparePlayerHands } from './handEvaluator';
+import { evaluatePlayerHand, comparePlayerHands, getHiLowWildIndices, getKMBPattern } from './handEvaluator';
 
 // ── Room Creation & Joining ──────────────────────────────────
 
@@ -116,7 +116,9 @@ export function startRound(room: Room): Room {
   }
 
   const cardsPerPlayer = room.variation === 'bestOfFour' ? 4 : 3;
-  const { hands, remainingDeck } = dealCards(activePlayers, cardsPerPlayer);
+  const dealResult = dealCards(activePlayers, cardsPerPlayer);
+  const hands = dealResult.hands;
+  let remainingDeck = dealResult.remainingDeck;
 
   // Advance dealer
   const newDealerIndex = (room.round === 0) ? 0 : (room.dealerIndex + 1) % activePlayers.length;
@@ -128,6 +130,17 @@ export function startRound(room: Room): Room {
   for (const id of room.playerOrder) {
     const p = room.players[id];
     if (activePlayers.includes(id)) {
+      let personalWilds: number[] | undefined;
+      let kmbPattern: 'kiss' | 'miss' | 'bliss' | 'none' | undefined;
+
+      if (room.variation === 'hiLowJoker') {
+        personalWilds = getHiLowWildIndices(hands[id]);
+      } else if (room.variation === 'kissMissBliss') {
+        const kmb = getKMBPattern(hands[id]);
+        kmbPattern = kmb.pattern;
+        personalWilds = kmb.wildIndices;
+      }
+
       players[id] = {
         ...p,
         hand: hands[id],
@@ -137,6 +150,8 @@ export function startRound(room: Room): Room {
         chips: p.chips - room.bootAmount,
         currentRoundBet: room.bootAmount,
         selectedCards: undefined,
+        personalWilds,
+        kmbPattern,
       };
     } else {
       // Player doesn't have enough chips — sits out
@@ -146,6 +161,8 @@ export function startRound(room: Room): Room {
         hasSeen: false,
         isFolded: true,
         currentRoundBet: 0,
+        personalWilds: undefined,
+        kmbPattern: undefined,
       };
     }
   }
@@ -156,6 +173,14 @@ export function startRound(room: Room): Room {
   let jokerCard: Card | undefined;
   if (room.variation === 'joker' && remainingDeck.length > 0) {
     jokerCard = remainingDeck[0];
+  }
+
+  // Rotating Joker: draw 3 table joker cards
+  let tableJokers: Card[] | undefined;
+  if (room.variation === 'rotatingJoker' && remainingDeck.length >= 3) {
+    tableJokers = remainingDeck.slice(0, 3);
+    // Remove them from the deck
+    remainingDeck = remainingDeck.slice(3);
   }
 
   const logEntry: ActionLogEntry = {
@@ -176,6 +201,7 @@ export function startRound(room: Room): Room {
     players,
     actionLog: [logEntry],
     jokerCard,
+    tableJokers,
     round: room.round + 1,
     lastWinner: undefined,
     deck: remainingDeck,
@@ -403,7 +429,7 @@ function handleFold(room: Room, playerId: string): Room {
     timestamp: Date.now(),
   };
 
-  const updatedRoom: Room = {
+  let updatedRoom: Room = {
     ...room,
     players: {
       ...room.players,
@@ -411,6 +437,26 @@ function handleFold(room: Room, playerId: string): Room {
     },
     actionLog: [...room.actionLog, log],
   };
+
+  // Rotating Joker: swap out one table joker on fold
+  if (room.variation === 'rotatingJoker' && updatedRoom.tableJokers && updatedRoom.tableJokers.length > 0 && updatedRoom.deck && updatedRoom.deck.length > 0) {
+    const newTableJokers = [...updatedRoom.tableJokers];
+    const newDeck = [...updatedRoom.deck];
+    // Remove first table joker, replace with top of deck
+    newTableJokers.shift();
+    newTableJokers.push(newDeck.shift()!);
+    updatedRoom = {
+      ...updatedRoom,
+      tableJokers: newTableJokers,
+      deck: newDeck,
+      actionLog: [...updatedRoom.actionLog, {
+        playerId: 'system',
+        playerName: 'System',
+        action: 'Table joker rotated',
+        timestamp: Date.now(),
+      }],
+    };
+  }
 
   // Check if only one player remains
   const active = getActivePlayers(updatedRoom);
@@ -473,6 +519,9 @@ function handleShow(room: Room, playerId: string): Room {
     showRoom.jokerCard,
     showRoom.players[playerId].selectedCards,
     showRoom.players[opponentId].selectedCards,
+    showRoom.players[playerId].personalWilds,
+    showRoom.players[opponentId].personalWilds,
+    showRoom.tableJokers,
   );
 
   // If tie or requester loses, requester loses. If requester wins, requester wins.
@@ -523,6 +572,8 @@ function resolveWinner(room: Room, winnerId: string): Room {
     room.variation,
     room.jokerCard,
     winner.selectedCards,
+    winner.personalWilds,
+    room.tableJokers,
   );
 
   const log: ActionLogEntry = {

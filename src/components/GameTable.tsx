@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Room, PlayerAction, VARIATION_NAMES } from '@/lib/types';
+import { Room, PlayerAction, VARIATION_NAMES, SUIT_SYMBOLS, RANK_DISPLAY } from '@/lib/types';
 import PlayerCards from './PlayerCards';
 import ActionBar from './ActionBar';
 import ActionLog from './ActionLog';
@@ -38,6 +38,8 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
     }
   }, [selectedCards]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const KMB_LABELS = { kiss: 'Kiss', miss: 'Miss', bliss: 'Bliss', none: '' };
+
   return (
     <div className="table-surface min-h-[100dvh] flex flex-col pb-28">
 
@@ -50,8 +52,27 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
       {/* Joker indicator */}
       {room.jokerCard && room.variation === 'joker' && (
         <p className="text-center text-muted text-xs mb-2">
-          Joker: <span className="text-primary font-serif">{room.jokerCard.rank}</span>
+          Joker rank: <span className="text-primary font-serif">{RANK_DISPLAY[room.jokerCard.rank]}</span>
         </p>
+      )}
+
+      {/* Rotating Joker: show table joker cards */}
+      {room.variation === 'rotatingJoker' && room.tableJokers && room.tableJokers.length > 0 && (
+        <div className="text-center mb-3">
+          <p className="text-muted text-[10px] mb-1.5">Table jokers</p>
+          <div className="flex justify-center gap-2">
+            {room.tableJokers.map((j, i) => (
+              <span key={i} className="font-serif text-sm text-accent bg-surface border border-border rounded px-2 py-0.5">
+                {RANK_DISPLAY[j.rank]}{SUIT_SYMBOLS[j.suit]}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 999: show scoring hint */}
+      {room.variation === 'nineNineNine' && (
+        <p className="text-center text-muted text-[10px] mb-2">Closest to 27 wins</p>
       )}
 
       {/* Opponents */}
@@ -77,12 +98,17 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
                 faceUp={room.status === 'showdown' || room.status === 'roundEnd'}
                 variation={room.variation}
                 jokerCard={room.jokerCard}
+                personalWilds={p.personalWilds}
+                tableJokers={room.tableJokers}
                 size="sm"
               />
 
               {p.isFolded && <span className="text-muted text-[10px]">folded</span>}
               {!p.isFolded && !p.hasSeen && isActive && (
                 <span className="text-muted text-[10px]">blind</span>
+              )}
+              {p.kmbPattern && p.kmbPattern !== 'none' && (
+                <span className="text-accent text-[10px]">{KMB_LABELS[p.kmbPattern]}</span>
               )}
             </div>
           );
@@ -106,6 +132,12 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
               <span className="font-serif text-sm text-muted">{currentPlayer.chips}</span>
               <span className="text-border">·</span>
               <span className="text-muted text-xs">{currentPlayer.hasSeen ? 'seen' : 'blind'}</span>
+              {currentPlayer.kmbPattern && currentPlayer.kmbPattern !== 'none' && (
+                <>
+                  <span className="text-border">·</span>
+                  <span className="text-accent text-xs">{KMB_LABELS[currentPlayer.kmbPattern]}</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -115,6 +147,8 @@ export default function GameTable({ room, playerId, onAction, onNextRound, loadi
             faceUp={currentPlayer.hasSeen || room.status === 'roundEnd'}
             variation={room.variation}
             jokerCard={room.jokerCard}
+            personalWilds={currentPlayer.personalWilds}
+            tableJokers={room.tableJokers}
             selectedIndices={room.variation === 'bestOfFour' ? (currentPlayer.selectedCards || selectedCards) : undefined}
             onSelectCard={room.variation === 'bestOfFour' && !currentPlayer.selectedCards ? handleCardSelect : undefined}
             size="lg"

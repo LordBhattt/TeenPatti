@@ -32,7 +32,9 @@ export interface HandEvaluation {
   displayName: string;
 }
 
-export type GameVariation = 'classic' | 'ak47' | 'muflis' | 'joker' | 'bestOfFour';
+export type GameVariation =
+  | 'classic' | 'ak47' | 'muflis' | 'joker' | 'bestOfFour'
+  | 'hiLowJoker' | 'lallanKallan' | 'nineNineNine' | 'kissMissBliss' | 'rotatingJoker';
 
 export type RoomStatus = 'waiting' | 'playing' | 'showdown' | 'roundEnd';
 
@@ -66,6 +68,10 @@ export interface Player {
   isConnected: boolean;
   /** Total bet this round */
   currentRoundBet: number;
+  /** Hi-Low Joker / Kiss-Miss-Bliss: indices of per-player wild cards */
+  personalWilds?: number[];
+  /** Kiss-Miss-Bliss: detected pattern */
+  kmbPattern?: 'kiss' | 'miss' | 'bliss' | 'none';
 }
 
 export interface Room {
@@ -89,6 +95,8 @@ export interface Room {
   actionLog: ActionLogEntry[];
   /** Revealed joker card for 'joker' variation */
   jokerCard?: Card;
+  /** Rotating Joker: 3 shared table joker cards */
+  tableJokers?: Card[];
   /** Current round number */
   round: number;
   /** Winner of the last round */
@@ -130,6 +138,11 @@ export const VARIATION_NAMES: Record<GameVariation, string> = {
   muflis: 'Muflis (Lowball)',
   joker: 'Joker',
   bestOfFour: 'Best of Four',
+  hiLowJoker: 'Hi-Low Joker',
+  lallanKallan: 'Lallan-Kallan',
+  nineNineNine: '999',
+  kissMissBliss: 'Kiss-Miss-Bliss',
+  rotatingJoker: 'Rotating Joker',
 };
 
 export const HAND_TYPE_NAMES: Record<HandType, string> = {
